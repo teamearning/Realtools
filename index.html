@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- critical: full-fit viewport, no scaling, webview covers everything -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>BS PRO • FULLSCREEN WEBVIEW • FIXED</title>
+  <!-- lottie (lightweight) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.9.6/lottie.min.js"></script>
+  <style>
+    /* RESET & FULL BOUNDS */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;           /* no scroll on body — webview scrolls internally */
+      background: #03050a;        /* edge color */
+      position: fixed;            /* extra insurance for fullscreen */
+      top: 0;
+      left: 0;
+    }
+
+    /* ---------- WEBVIEW CONTAINER : ABSOLUTE FULL COVER ---------- */
+    #webview-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;        /* white before load */
+      z-index: 1;                 /* behind the float button */
+      overflow: hidden;
+      border: none;
+    }
+
+    #webview-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: white;
+      display: block;             /* removes extra spacing */
+    }
+
+    /* ---------- FLOATING BS BUTTON (above webview) ---------- */
+    #floatBtn {
+      position: fixed;
+      bottom: 90px;
+      right: 25px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 9999;
+      background: linear-gradient(135deg, #00e5ff, #6a5cff);
+      box-shadow: 0 0 20px #00e5ff, 0 0 40px #6a5cff;
+      touch-action: none;
+      user-select: none;
+      border: 2px solid rgba(255,255,255,0.3);
+      transition: box-shadow 0.2s;
+      color: black;
+      text-shadow: 0 0 5px white;
+    }
+
+    #floatBtn::before {
+      content: "";
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 2px dashed rgba(0, 229, 255, 0.6);
+      animation: spin 6s linear infinite;
+    }
+    #floatBtn::after {
+      content: "";
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 229, 255, 0.25), transparent 70%);
+      animation: pulse 2s infinite alternate;
+    }
+
+    @keyframes spin { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
+    @keyframes pulse { 0% { transform: scale(1); } 100% { transform: scale(1.2); } }
+
+    /* ---------- INJECTOR PANEL (floating, above webview) ---------- */
+    #injector {
+      position: fixed;
+      width: 300px;               
+      background: rgba(18, 20, 28, 0.96);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 25px 70px rgba(0,0,0,0.9), 0 0 50px rgba(0,229,255,0.3);
+      display: none;
+      z-index: 100000;
+      overflow: hidden;
+      touch-action: none;
+      color: #f0f0f0;
+      left: 30px;        /* fallback */
+      top: 100px;
+    }
+
+    #header {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    #title {
+      font-weight: 900;
+      font-size: 15px;
+      background: linear-gradient(90deg, #00e5ff, #6a5cff, #ff2ad4);
+      background-size: 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: titleFlow 4s linear infinite;
+    }
+    @keyframes titleFlow { 0% { background-position: 0%; } 100% { background-position: 200%; } }
+    #header span {
+      cursor: pointer;
+      font-size: 22px;
+      color: #ccc;
+      transition: 0.2s;
+      line-height: 1;
+      padding: 0 5px;
+    }
+    #header span:hover { color: white; }
+
+    #content {
+      padding: 20px 18px;
+    }
+
+    /* instruction screen */
+    #instructionScreen {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .reg-step {
+      background: rgba(0, 255, 200, 0.1);
+      border-left: 5px solid #00ffc3;
+      padding: 16px 14px;
+      border-radius: 16px;
+      font-size: 14.5px;
+      font-weight: 500;
+      color: #d5f7ee;
+      text-align: left;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+      line-height: 1.5;
+    }
+    .green-highlight {
+      color: #a8ffb5;
+      text-shadow: 0 0 8px #00ff88;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .next-btn {
+      background: linear-gradient(135deg, #2ecc71, #1abc9c);
+      padding: 16px 10px;
+      border-radius: 60px;
+      font-weight: 900;
+      font-size: 17px;
+      cursor: pointer;
+      box-shadow: 0 0 25px rgba(0, 255, 200, 0.7);
+      border: none;
+      color: #111;
+      text-align: center;
+      margin-top: 10px;
+      transition: 0.2s;
+    }
+    .next-btn:active { transform: scale(0.98); }
+
+    /* main screen (analysis) */
+    #mainScreen {
+      display: none;
+      text-align: center;
+    }
+    .bigText {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, #00e5ff, #ffffff, #6a5cff);
+      background-size: 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: resultFlow 3s linear infinite;
+      margin: 10px 0 5px;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+    @keyframes resultFlow { 0% { background-position: 0%; } 100% { background-position: 200%; } }
+    .periodBox {
+      margin: 15px 0;
+      padding: 14px 12px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.07);
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid rgba(255,255,255,0.05);
+      word-break: break-all;
+    }
+    .startBtn {
+      padding: 16px;
+      border-radius: 40px;
+      background: linear-gradient(135deg, #00e5ff, #6a5cff);
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 0 30px rgba(0, 229, 255, 0.5);
+      transition: 0.2s;
+      border: none;
+      color: white;
+      font-size: 16px;
+      margin: 10px 0 8px;
+    }
+    .startBtn:active { transform: scale(0.97); }
+    .conf {
+      margin: 10px 0 5px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .latency {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    #loader {
+      width: 80px;
+      height: 80px;
+      margin: 5px auto 15px;
+      display: none;
+    }
+
+    /* toast */
+    #toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%) scale(0.9);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      padding: 14px 25px;
+      border-radius: 60px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      transition: 0.25s;
+      border: 1px solid rgba(0,229,255,0.5);
+      box-shadow: 0 0 40px #00e5ff88;
+      z-index: 200001;
+      color: white;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) scale(1);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- FULLSCREEN WEBVIEW: PROPERLY FITTED (ABSOLUTE) -->
+  <div id="webview-container">
+    <iframe id="webview-frame" src="https://tashanwin15.com/#/register?invitationCode=28481290265" sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation" allow="fullscreen; clipboard-write"></iframe>
+  </div>
+
+  <!-- FLOATING BS BUTTON (always on top) -->
+  <div id="floatBtn">BS</div>
+
+  <!-- INJECTOR PANEL (floating above) -->
+  <div id="injector">
+    <div id="header">
+      <div id="title">BS PRO PANEL • FIXED</div>        
+      <span onclick="closePanel()">✕</span>        
+    </div>
+    <div id="content">
+      <!-- INSTRUCTION SCREEN (visible first) -->  
+      <div id="instructionScreen">  
+        <div class="reg-step">  
+          <span class="green-highlight">⏺ STEP 1 · REGISTER FIRST</span><br>  
+          then deposit <strong>₹1200</strong> to activate server.  
+        </div>  
+        <div class="reg-step" style="border-left-color:#ffaa00;">  
+          <span class="green-highlight">⚡ WORKING TOOL</span><br>  
+          RUNNING HACKING <span style="color:#83ffb2;">THE VIP SERVER TOOL 🔥</span>  
+        </div>  
+        <div class="next-btn" onclick="showMainPanel()">➡️ NEXT · OPEN INJECTOR</div>  
+      </div>  
+
+      <!-- MAIN ANALYSIS SCREEN (hidden initially) -->  
+      <div id="mainScreen">  
+        <div class="bigText" id="resultText">WAIT</div>  
+        <div id="loader"></div>  
+        <div class="periodBox" id="period">----</div>  
+        <div class="conf" id="confidence">CONFIDENCE --%</div>  
+        <div class="startBtn" onclick="startDemo()">START ANALYSIS</div>  
+        <div class="latency">Server Latency: <span id="ping">--</span></div>  
+      </div>  
+    </div>        
+  </div>  
+
+  <!-- TOAST -->
+  <div id="toast">Please wait next period</div>
+
+  <script>
+    (function() {
+      // ========== lottie loader ==========
+      lottie.loadAnimation({
+        container: document.getElementById("loader"),
+        renderer: "svg",
+        loop: true,
+        autoplay: true,
+        path: "https://assets9.lottiefiles.com/packages/lf20_usmfx6bp.json"
+      });
+
+      // ========== elements ==========
+      const floatBtn = document.getElementById("floatBtn");
+      const panel = document.getElementById("injector");
+      const periodEl = document.getElementById("period");
+      const resultText = document.getElementById("resultText");
+      const confidenceEl = document.getElementById("confidence");
+      const ping = document.getElementById("ping");
+      const loader = document.getElementById("loader");
+      const toast = document.getElementById("toast");
+
+      const instructionScreen = document.getElementById("instructionScreen");
+      const mainScreen = document.getElementById("mainScreen");
+
+      let lastPeriod = "", locked = false;
+
+      // ========== toast helper ==========
+      function showToast(msg) {
+        toast.innerText = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2500);
+      }
+      window.showToast = showToast;
+
+      // ========== update period (IST based) ==========
+      function updatePeriod() {
+        try {
+          const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+          const datePart = now.getFullYear() +
+            String(now.getMonth() + 1).padStart(2, "0") +
+            String(now.getDate()).padStart(2, "0");
+          const totalMin = now.getHours() * 60 + now.getMinutes();
+          // original style
+          const p = datePart + "****" + (10001 + totalMin - 330);
+          periodEl.innerText = p;
+
+          if (p !== lastPeriod) {
+            lastPeriod = p;
+            locked = false;
+            resultText.innerText = "WAIT";
+          }
+        } catch (e) {
+          periodEl.innerText = "----";
+        }
+      }
+      setInterval(updatePeriod, 1000);
+      updatePeriod();
+
+      // ========== start analysis (from main panel) ==========
+      window.startDemo = function() {
+        if (locked) {
+          showToast("Please wait next period");
+          return;
+        }
+        locked = true;
+        loader.style.display = "block";
+        resultText.innerText = "";
+
+        setTimeout(() => {
+          loader.style.display = "none";
+          const big = Math.random() > 0.5;
+          const num = big ? Math.floor(Math.random() * 5) + 5 : Math.floor(Math.random() * 5);
+          resultText.innerText = (big ? "BIG " : "SMALL ") + num;
+          confidenceEl.innerText = "CONFIDENCE " + (85 + Math.floor(Math.random() * 15)) + "%";
+          ping.innerText = (18 + Math.floor(Math.random() * 35)) + " ms";
+        }, 2000);
+      };
+
+      // ========== clicking on result when locked shows toast ==========
+      resultText.onclick = () => {
+        if (locked) showToast("Please wait next period");
+      };
+
+      // ========== OPEN PANEL : show instruction first ==========
+      floatBtn.onclick = (e) => {
+        e.stopPropagation();
+        // place panel inside view (avoid edges)
+        panel.style.left = "30px";
+        panel.style.top = "100px";
+        panel.style.display = "block";
+        floatBtn.style.display = "none";
+
+        // Reset views
+        instructionScreen.style.display = "flex";
+        instructionScreen.style.flexDirection = "column";
+        mainScreen.style.display = "none";
+      };
+
+      window.closePanel = function() {
+        panel.style.display = "none";
+        floatBtn.style.display = "flex";
+      };
+
+      // ========== NEXT button : hide instruction, show main ==========
+      window.showMainPanel = function() {
+        instructionScreen.style.display = "none";
+        mainScreen.style.display = "block";
+      };
+
+      // ========== panel drag ==========
+      let drag = false, dx = 0, dy = 0;
+      panel.addEventListener("pointerdown", (e) => {
+        drag = true;
+        dx = e.clientX - panel.offsetLeft;
+        dy = e.clientY - panel.offsetTop;
+        panel.setPointerCapture(e.pointerId);
+      });
+
+      document.addEventListener("pointermove", (e) => {
+        if (!drag) return;
+        panel.style.left = (e.clientX - dx) + "px";
+        panel.style.top = (e.clientY - dy) + "px";
+      });
+
+      document.addEventListener("pointerup", () => {
+        drag = false;
+      });
+
+      // ========== float button drag ==========
+      let fdrag = false, startX, startY, btnX, btnY;
+      floatBtn.addEventListener("pointerdown", (e) => {
+        fdrag = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        btnX = floatBtn.offsetLeft;
+        btnY = floatBtn.offsetTop;
+        floatBtn.setPointerCapture(e.pointerId);
+      });
+
+      document.addEventListener("pointermove", (e) => {
+        if (!fdrag) return;
+        let moveX = e.clientX - startX;
+        let moveY = e.clientY - startY;
+        floatBtn.style.left = (btnX + moveX) + "px";
+        floatBtn.style.top = (btnY + moveY) + "px";
+        floatBtn.style.right = "auto";
+        floatBtn.style.bottom = "auto";
+      });
+
+      document.addEventListener("pointerup", () => {
+        fdrag = false;
+      });
+
+      // initial states
+      instructionScreen.style.display = "flex";
+      instructionScreen.style.flexDirection = "column";
+      mainScreen.style.display = "none";
+
+      // ensure iframe fits properly after any rotation / resize
+      function fullFit() {
+        // nothing needed, css covers 100%
+      }
+      window.addEventListener('resize', fullFit);
+      fullFit();
+
+      // extra: if you want to allow iframe to navigate, sandbox is permissive
+      // all good.
+    })();
+  </script>
+</body>
+</html>
